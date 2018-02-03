@@ -7,6 +7,11 @@ import (
 	"unicode"
 )
 
+// A set of characters that should be treated as word separators when performing word completion
+// (Bash's COMP_WORDBREAKS equivalent).
+// If you are having trouble with completions like /usr/bin:/foo/ba[TAB] change the value below to `"'@><=;|&(:`.
+var LastArgBreaks = "="
+
 // Args describes command line arguments
 type Args struct {
 	// All lists of all arguments in command line (not including the command itself)
@@ -62,16 +67,26 @@ func splitFields(line string) []string {
 	if len(line) > 0 && unicode.IsSpace(rune(line[len(line)-1])) {
 		parts = append(parts, "")
 	}
-	parts = splitLastEqual(parts)
+	parts = splitLastBreak(parts)
 	return parts
 }
 
-func splitLastEqual(line []string) []string {
+func splitLastBreak(line []string) []string {
 	if len(line) == 0 {
 		return line
 	}
-	parts := strings.Split(line[len(line)-1], "=")
-	return append(line[:len(line)-1], parts...)
+	last := line[len(line)-1]
+	splitIndex := -1
+	for _, c := range LastArgBreaks {
+		index := strings.LastIndex(last, string(c))
+		if index > splitIndex {
+			splitIndex = index
+		}
+	}
+	if splitIndex == -1 {
+		return line
+	}
+	return append(line[:len(line)-1], last[:splitIndex], last[splitIndex+1:])
 }
 
 func (a Args) from(i int) Args {
